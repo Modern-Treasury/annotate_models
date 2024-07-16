@@ -188,6 +188,9 @@ module AnnotateModels
           name_remainder = max_size - col_name.length - non_ascii_length(col_name)
           type_remainder = (md_type_allowance - 2) - col_type.length
           info << (sprintf("# **`%s`**%#{name_remainder}s | `%s`%#{type_remainder}s | `%s`", col_name, " ", col_type, " ", attrs.join(", ").rstrip)).gsub('``', '  ').rstrip + "\n"
+          if col_comment
+            info.push(split_text(col_comment).map { |comment_line| "#   #{comment_line}\n" })
+          end
         elsif with_comments_column
           info << format_default(col_name, max_size, col_type, bare_type_allowance, simple_formatted_attrs, bare_max_attrs_length, col_comment)
         else
@@ -207,7 +210,30 @@ module AnnotateModels
         info << get_check_constraint_info(klass, options)
       end
 
+      if options[:show_column_comments] && klass.table_exists?
+        info << get_column_comment_info(klass, options)
+      end
+
       info << get_schema_footer_text(klass, options)
+    end
+
+    def split_text(text, max_length = 60)
+      words = text.split
+      lines = []
+      current_line = ""
+
+      words.each do |word|
+        if current_line.length + word.length + 1 <= max_length
+          current_line += " " unless current_line.empty?
+          current_line += word
+        else
+          lines << current_line
+          current_line = word
+        end
+      end
+
+      lines << current_line unless current_line.empty?
+      lines
     end
 
     def get_schema_header_text(klass, options = {})
@@ -253,6 +279,9 @@ module AnnotateModels
       end
 
       index_info
+    end
+
+    def get_column_comment_info(klass, options = {})
     end
 
     def get_col_type(col)
